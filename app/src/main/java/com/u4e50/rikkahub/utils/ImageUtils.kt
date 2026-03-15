@@ -15,12 +15,19 @@ import com.google.zxing.BinaryBitmap
 import com.google.zxing.MultiFormatReader
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
+import java.io.ByteArrayOutputStream
 
 /**
  * 鍥剧墖澶勭悊宸ュ叿绫?
  * 鎻愪緵鍥剧墖鍘嬬缉銆佹棆杞慨姝ｃ€佷簩缁寸爜瑙ｆ瀽绛夊姛鑳?
  */
 object ImageUtils {
+    data class CompressionPreview(
+        val bytes: ByteArray,
+        val width: Int,
+        val height: Int,
+        val mimeType: String,
+    )
 
     /**
      * 浼樺寲鐨勫浘鐗囧姞杞芥柟娉曪紝閬垮厤OOM
@@ -227,6 +234,44 @@ object ImageUtils {
         }.getOrNull()
     }
 
+    fun createCompressionPreview(
+        context: Context,
+        uri: Uri,
+        quality: Int,
+        maxLongEdge: Int,
+    ): CompressionPreview? {
+        return runCatching {
+            val sanitizedQuality = quality.coerceIn(20, 100)
+            val sanitizedMaxLongEdge = maxLongEdge.coerceAtLeast(256)
+            val sourceBitmap = loadOptimizedBitmap(
+                context = context,
+                uri = uri,
+                maxSize = sanitizedMaxLongEdge
+            ) ?: error("Failed to load bitmap for compression")
+
+            val resizedBitmap = sourceBitmap.resizeToMaxLongEdge(sanitizedMaxLongEdge)
+            val bytes = ByteArrayOutputStream().use { output ->
+                resizedBitmap.compress(Bitmap.CompressFormat.JPEG, sanitizedQuality, output)
+                output.toByteArray()
+            }
+
+            val preview = CompressionPreview(
+                bytes = bytes,
+                width = resizedBitmap.width,
+                height = resizedBitmap.height,
+                mimeType = "image/jpeg"
+            )
+
+            if (resizedBitmap !== sourceBitmap) {
+                sourceBitmap.recycle()
+            }
+            resizedBitmap.recycle()
+            preview
+        }.onFailure {
+            it.printStackTrace()
+        }.getOrNull()
+    }
+
     /**
      * 鑾峰彇閰掗瑙掕壊鍗′腑鐨勮鑹插厓鏁版嵁锛堝鏋滃瓨鍦級
      *
@@ -256,5 +301,16 @@ object ImageUtils {
         val height: Int,
         val mimeType: String?
     )
+
+    private fun Bitmap.resizeToMaxLongEdge(maxLongEdge: Int): Bitmap {
+        val currentLongEdge = maxOf(width, height)
+        if (currentLongEdge <= maxLongEdge) {
+            return this
+        }
+        val scale = maxLongEdge.toFloat() / currentLongEdge.toFloat()
+        val targetWidth = (width * scale).toInt().coerceAtLeast(1)
+        val targetHeight = (height * scale).toInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(this, targetWidth, targetHeight, true)
+    }
 }
 

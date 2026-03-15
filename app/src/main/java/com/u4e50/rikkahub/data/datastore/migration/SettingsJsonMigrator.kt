@@ -1,11 +1,18 @@
 package com.u4e50.rikkahub.data.datastore.migration
 
 import android.util.Log
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import com.u4e50.rikkahub.utils.JsonInstant
+import com.u4e50.rikkahub.utils.jsonPrimitiveOrNull
 
 private const val TAG = "SettingsJsonMigrator"
+private const val LEGACY_APP_PACKAGE_PREFIX = "me.rerere.rikkahub."
+private const val CURRENT_APP_PACKAGE_PREFIX = "com.u4e50.rikkahub."
 
 /**
  * 瀵瑰浠芥枃浠朵腑鐨?settings.json 搴旂敤涓?DataStore migration 鐩稿悓鐨勮縼绉婚€昏緫銆?
@@ -36,10 +43,35 @@ object SettingsJsonMigrator {
                 root["assistants"] = JsonInstant.parseToJsonElement(migrated)
             }
 
-            JsonInstant.encodeToString(JsonObject(root))
+            val migratedRoot = migrateLegacyTypeNames(JsonObject(root)).jsonObject
+            JsonInstant.encodeToString(migratedRoot)
         }.onFailure {
             Log.e(TAG, "migrate: Failed to migrate settings JSON, using original", it)
         }.getOrDefault(settingsJson)
+    }
+
+    private fun migrateLegacyTypeNames(element: JsonElement): JsonElement {
+        return when (element) {
+            is JsonObject -> JsonObject(
+                element.mapValues { (key, value) ->
+                    if (key == "type") {
+                        migrateLegacyTypeValue(value)
+                    } else {
+                        migrateLegacyTypeNames(value)
+                    }
+                }
+            )
+
+            is JsonArray -> JsonArray(element.map(::migrateLegacyTypeNames))
+            else -> element
+        }
+    }
+
+    private fun migrateLegacyTypeValue(element: JsonElement): JsonElement {
+        val typeName = element.jsonPrimitiveOrNull?.contentOrNull ?: return element
+        if (!typeName.startsWith(LEGACY_APP_PACKAGE_PREFIX)) return element
+
+        return JsonPrimitive(typeName.replace(LEGACY_APP_PACKAGE_PREFIX, CURRENT_APP_PACKAGE_PREFIX))
     }
 }
 

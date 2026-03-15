@@ -182,6 +182,28 @@ class FilesManager(
         return newUris
     }
 
+    fun createChatFileFromBytes(
+        bytes: ByteArray,
+        displayName: String,
+        mimeType: String,
+    ): Uri {
+        val dir = context.filesDir.resolve(FileFolders.UPLOAD)
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+
+        val fileName = buildUuidFileName(displayName = displayName, mimeType = mimeType)
+        val file = dir.resolve(fileName)
+        if (!file.exists()) {
+            file.createNewFile()
+        }
+        file.outputStream().use { outputStream ->
+            outputStream.write(bytes)
+        }
+        trackUploadFile(file = file, displayName = displayName, mimeType = mimeType)
+        return file.toUri()
+    }
+
     @OptIn(ExperimentalEncodingApi::class)
     suspend fun convertBase64ImagePartToLocalFile(message: UIMessage): UIMessage =
         withContext(Dispatchers.IO) {

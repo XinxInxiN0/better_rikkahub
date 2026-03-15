@@ -2,6 +2,7 @@ package com.u4e50.rikkahub.ui.components.ai
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.BackHandler
@@ -10,6 +11,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -44,11 +46,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -58,6 +62,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -76,6 +81,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -100,7 +106,9 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.materials.HazeMaterials
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
@@ -140,8 +148,10 @@ import com.u4e50.rikkahub.ui.context.LocalNavController
 import com.u4e50.rikkahub.ui.context.LocalSettings
 import com.u4e50.rikkahub.ui.context.LocalToaster
 import com.u4e50.rikkahub.ui.hooks.ChatInputState
+import com.u4e50.rikkahub.utils.ImageUtils
 import org.koin.compose.koinInject
 import java.io.File
+import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
@@ -1006,8 +1016,224 @@ private fun FullScreenEditor(
 }
 
 @Composable
+private fun ImageCompressionEditorDialog(
+    sourceUri: Uri,
+    onDismiss: () -> Unit,
+    onUseOriginal: (Uri) -> Unit,
+    onConfirm: (bytes: ByteArray, displayName: String, mimeType: String) -> Unit,
+) {
+    val context = LocalContext.current
+    val filesManager: FilesManager = koinInject()
+    val originalInfo = remember(sourceUri) { ImageUtils.getImageInfo(context, sourceUri) }
+    val originalWidth = originalInfo?.width ?: 0
+    val originalHeight = originalInfo?.height ?: 0
+    val originalLongEdge = maxOf(originalWidth, originalHeight).coerceAtLeast(256)
+    val minScale = if (originalLongEdge <= 1440) 1f else 0.35f
+
+    var quality by remember(sourceUri) { mutableStateOf(82f) }
+    var resolutionScale by remember(sourceUri) { mutableStateOf(1f) }
+    var preview by remember(sourceUri) { mutableStateOf<ImageUtils.CompressionPreview?>(null) }
+    var loading by remember(sourceUri) { mutableStateOf(true) }
+
+    val targetLongEdge = (originalLongEdge * resolutionScale)
+        .roundToInt()
+        .coerceIn((originalLongEdge * minScale).roundToInt(), originalLongEdge)
+
+    LaunchedEffect(sourceUri, quality, targetLongEdge) {
+        loading = true
+        preview = withContext(Dispatchers.Default) {
+            ImageUtils.createCompressionPreview(
+                context = context,
+                uri = sourceUri,
+                quality = quality.roundToInt(),
+                maxLongEdge = targetLongEdge
+            )
+        }
+        loading = false
+    }
+
+    val previewBitmap = remember(preview?.bytes) {
+        preview?.bytes?.let { bytes ->
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        }
+    }
+    val displayName = remember(sourceUri) {
+        buildCompressedDisplayName(filesManager.getFileNameFromUri(sourceUri))
+    }
+
+    BasicAlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
+                .safeDrawingPadding()
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = 900.dp)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.95f),
+                shape = RoundedCornerShape(28.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "图片压缩",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                text = "实时预览压缩效果和输出分辨率",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        TextButton(onClick = onDismiss) {
+                            Text("取消")
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(320.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            when {
+                                previewBitmap != null -> {
+                                    Image(
+                                        bitmap = previewBitmap,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+
+                                loading -> {
+                                    CircularProgressIndicator()
+                                }
+
+                                else -> {
+                                    Text(
+                                        text = "预览生成失败",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "原图: ${formatResolution(originalWidth, originalHeight)}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "当前: ${formatResolution(preview?.width ?: 0, preview?.height ?: 0)}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "预估大小: ${preview?.bytes?.size?.toLong()?.toReadableFileSize() ?: "--"}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "压缩质量 ${quality.roundToInt()}%",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Slider(
+                            value = quality,
+                            onValueChange = { quality = it },
+                            valueRange = 35f..100f
+                        )
+                    }
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "输出分辨率 ${formatResolutionForLongEdge(originalWidth, originalHeight, targetLongEdge)}",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Slider(
+                            value = resolutionScale,
+                            onValueChange = { resolutionScale = it },
+                            valueRange = minScale..1f,
+                            steps = 6
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        TextButton(
+                            onClick = { onUseOriginal(sourceUri) },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("使用原图")
+                        }
+                        TextButton(
+                            onClick = {
+                                val currentPreview = preview ?: return@TextButton
+                                onConfirm(currentPreview.bytes, displayName, currentPreview.mimeType)
+                            },
+                            enabled = preview != null && !loading,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("应用压缩")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun useCropLauncher(
-    onCroppedImageReady: (Uri) -> Unit, onCleanup: (() -> Unit)? = null
+    onCroppedImageReady: (Uri) -> Unit,
+    onCleanup: (() -> Unit)? = null,
+    deleteOutputAfterResult: Boolean = true,
 ): Pair<ActivityResultLauncher<Intent>, (Uri) -> Unit> {
     val context = LocalContext.current
     var cropOutputUri by remember { mutableStateOf<Uri?>(null) }
@@ -1019,9 +1245,12 @@ private fun useCropLauncher(
             cropOutputUri?.let { croppedUri ->
                 onCroppedImageReady(croppedUri)
             }
+            if (deleteOutputAfterResult) {
+                cropOutputUri?.toFile()?.delete()
+            }
+        } else {
+            cropOutputUri?.toFile()?.delete()
         }
-        // Clean up crop output file
-        cropOutputUri?.toFile()?.delete()
         cropOutputUri = null
         onCleanup?.invoke()
     }
@@ -1044,21 +1273,56 @@ private fun useCropLauncher(
     return Pair(cropActivityLauncher, launchCrop)
 }
 
+private fun buildCompressedDisplayName(originalName: String?): String {
+    val baseName = originalName
+        ?.substringBeforeLast('.', missingDelimiterValue = originalName)
+        ?.takeIf { it.isNotBlank() }
+        ?: "photo"
+    return "${baseName}_compressed.jpg"
+}
+
+private fun formatResolution(width: Int, height: Int): String {
+    if (width <= 0 || height <= 0) return "--"
+    return "${width} × ${height}"
+}
+
+private fun formatResolutionForLongEdge(width: Int, height: Int, targetLongEdge: Int): String {
+    if (width <= 0 || height <= 0) return "--"
+    val originalLongEdge = maxOf(width, height)
+    if (originalLongEdge <= 0) return "--"
+    val scale = targetLongEdge.toFloat() / originalLongEdge.toFloat()
+    val targetWidth = (width * scale).roundToInt().coerceAtLeast(1)
+    val targetHeight = (height * scale).roundToInt().coerceAtLeast(1)
+    return formatResolution(targetWidth, targetHeight)
+}
+
+private fun Long.toReadableFileSize(): String {
+    if (this < 1024) return "${this} B"
+    val kb = this / 1024f
+    if (kb < 1024f) return String.format("%.0f KB", kb)
+    val mb = kb / 1024f
+    if (mb < 1024f) return String.format("%.2f MB", mb)
+    val gb = mb / 1024f
+    return String.format("%.2f GB", gb)
+}
+
 @Composable
 private fun ImagePickButton(onAddImages: (List<Uri>) -> Unit = {}) {
     val context = LocalContext.current
     val settings = LocalSettings.current
     val filesManager: FilesManager = koinInject()
     var preCropTempFile by remember { mutableStateOf<File?>(null) }
+    var editingImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val (_, launchCrop) = useCropLauncher(
         onCroppedImageReady = { croppedUri ->
-            onAddImages(filesManager.createChatFilesByContents(listOf(croppedUri)))
+            editingImageUri = croppedUri
         },
         onCleanup = {
             preCropTempFile?.delete()
             preCropTempFile = null
-        }
+        },
+        deleteOutputAfterResult = false
     )
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -1102,6 +1366,31 @@ private fun ImagePickButton(onAddImages: (List<Uri>) -> Unit = {}) {
     }) {
         imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
+
+    editingImageUri?.let { sourceUri ->
+        ImageCompressionEditorDialog(
+            sourceUri = sourceUri,
+            onDismiss = {
+                sourceUri.toFile().delete()
+                editingImageUri = null
+            },
+            onUseOriginal = { originalUri ->
+                onAddImages(filesManager.createChatFilesByContents(listOf(originalUri)))
+                originalUri.toFile().delete()
+                editingImageUri = null
+            },
+            onConfirm = { bytes, displayName, mimeType ->
+                val finalUri = filesManager.createChatFileFromBytes(
+                    bytes = bytes,
+                    displayName = displayName,
+                    mimeType = mimeType
+                )
+                onAddImages(listOf(finalUri))
+                sourceUri.toFile().delete()
+                editingImageUri = null
+            }
+        )
+    }
 }
 
 @Composable
@@ -1113,15 +1402,16 @@ fun TakePicButton(onAddImages: (List<Uri>) -> Unit = {}) {
     val filesManager: FilesManager = koinInject()
     var cameraOutputUri by remember { mutableStateOf<Uri?>(null) }
     var cameraOutputFile by remember { mutableStateOf<File?>(null) }
+    var editingImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val (_, launchCrop) = useCropLauncher(onCroppedImageReady = { croppedUri ->
-        onAddImages(filesManager.createChatFilesByContents(listOf(croppedUri)))
+        editingImageUri = croppedUri
     }, onCleanup = {
         // Clean up camera temp file after cropping is done
         cameraOutputFile?.delete()
         cameraOutputFile = null
         cameraOutputUri = null
-    })
+    }, deleteOutputAfterResult = false)
 
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -1168,6 +1458,31 @@ fun TakePicButton(onAddImages: (List<Uri>) -> Unit = {}) {
                 cameraPermission.requestPermissions()
             }
         }
+    }
+
+    editingImageUri?.let { sourceUri ->
+        ImageCompressionEditorDialog(
+            sourceUri = sourceUri,
+            onDismiss = {
+                sourceUri.toFile().delete()
+                editingImageUri = null
+            },
+            onUseOriginal = { originalUri ->
+                onAddImages(filesManager.createChatFilesByContents(listOf(originalUri)))
+                originalUri.toFile().delete()
+                editingImageUri = null
+            },
+            onConfirm = { bytes, displayName, mimeType ->
+                val finalUri = filesManager.createChatFileFromBytes(
+                    bytes = bytes,
+                    displayName = displayName,
+                    mimeType = mimeType
+                )
+                onAddImages(listOf(finalUri))
+                sourceUri.toFile().delete()
+                editingImageUri = null
+            }
+        )
     }
 }
 
