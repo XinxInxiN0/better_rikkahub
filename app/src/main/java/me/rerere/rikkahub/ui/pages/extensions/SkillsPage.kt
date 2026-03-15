@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.ui.pages.extensions
+package com.u4e50.rikkahub.ui.pages.extensions
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,20 +43,20 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import me.rerere.rikkahub.R
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Download01
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Puzzle
-import me.rerere.rikkahub.data.files.SkillFrontmatterParser
-import me.rerere.rikkahub.data.files.SkillMetadata
-import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
-import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.plus
+import com.u4e50.rikkahub.R
+import com.u4e50.rikkahub.data.files.SkillFrontmatterParser
+import com.u4e50.rikkahub.data.files.SkillMetadata
+import com.u4e50.rikkahub.ui.components.nav.BackButton
+import com.u4e50.rikkahub.ui.components.ui.RikkaConfirmDialog
+import com.u4e50.rikkahub.ui.context.LocalToaster
+import com.u4e50.rikkahub.ui.theme.CustomColors
+import com.u4e50.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
 @Composable

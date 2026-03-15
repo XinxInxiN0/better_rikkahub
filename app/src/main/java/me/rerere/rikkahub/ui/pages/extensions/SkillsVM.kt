@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.ui.pages.extensions
+package com.u4e50.rikkahub.ui.pages.extensions
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,9 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import me.rerere.rikkahub.data.files.SkillFrontmatterParser
-import me.rerere.rikkahub.data.files.SkillManager
-import me.rerere.rikkahub.data.files.SkillMetadata
+import com.u4e50.rikkahub.data.files.SkillFrontmatterParser
+import com.u4e50.rikkahub.data.files.SkillManager
+import com.u4e50.rikkahub.data.files.SkillMetadata
 import java.net.HttpURLConnection
 import java.net.URL
 

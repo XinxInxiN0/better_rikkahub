@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.ui.pages.extensions
+package com.u4e50.rikkahub.ui.pages.extensions
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,16 +16,16 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.rikkahub.R
 import me.rerere.hugeicons.stroke.Book03
 import me.rerere.hugeicons.stroke.Puzzle
 import me.rerere.hugeicons.stroke.Zap
-import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.plus
+import com.u4e50.rikkahub.R
+import com.u4e50.rikkahub.Screen
+import com.u4e50.rikkahub.ui.components.nav.BackButton
+import com.u4e50.rikkahub.ui.components.ui.CardGroup
+import com.u4e50.rikkahub.ui.context.LocalNavController
+import com.u4e50.rikkahub.ui.theme.CustomColors
+import com.u4e50.rikkahub.utils.plus
 
 @Composable
 fun ExtensionsPage() {
