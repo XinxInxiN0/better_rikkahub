@@ -5,7 +5,7 @@ import androidx.core.net.toUri
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.sse.*
+import io.ktor.client.plugins.sse.SSE
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.util.StringValues
 import io.modelcontextprotocol.kotlin.sdk.client.Client
@@ -28,10 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.encodeToJsonElement
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.ui.UIMessagePart
 import com.u4e50.rikkahub.AppScope
@@ -41,12 +38,10 @@ import com.u4e50.rikkahub.data.datastore.SettingsStore
 import com.u4e50.rikkahub.data.datastore.getCurrentAssistant
 import com.u4e50.rikkahub.data.files.FilesManager
 import com.u4e50.rikkahub.utils.JsonInstant
-import com.u4e50.rikkahub.utils.JsonInstantPretty
 import com.u4e50.rikkahub.utils.checkDifferent
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 

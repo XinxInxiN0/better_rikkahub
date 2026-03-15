@@ -4,8 +4,11 @@ import android.util.Log
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -13,6 +16,8 @@ import kotlinx.coroutines.launch
 import com.u4e50.rikkahub.data.datastore.Settings
 import com.u4e50.rikkahub.data.datastore.SettingsStore
 import com.u4e50.rikkahub.data.files.FilesManager
+import com.u4e50.rikkahub.data.files.SkillManager
+import com.u4e50.rikkahub.data.files.SkillMetadata
 import com.u4e50.rikkahub.data.model.Assistant
 import com.u4e50.rikkahub.data.model.AssistantMemory
 import com.u4e50.rikkahub.data.model.Avatar
@@ -27,8 +32,18 @@ class AssistantDetailVM(
     private val settingsStore: SettingsStore,
     private val memoryRepository: MemoryRepository,
     private val filesManager: FilesManager,
+    private val skillManager: SkillManager,
 ) : ViewModel() {
     private val assistantId = Uuid.parse(id)
+
+    private val _skills = MutableStateFlow<List<SkillMetadata>>(emptyList())
+    val skills = _skills.asStateFlow()
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            _skills.value = skillManager.listSkills()
+        }
+    }
 
     val settings: StateFlow<Settings> =
         settingsStore.settingsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, Settings.dummy())

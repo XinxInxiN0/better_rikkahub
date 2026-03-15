@@ -221,10 +221,11 @@ private fun createMergedInjectionMessages(injections: List<PromptInjection>): Li
 }
 
 /**
- * 鏌ユ壘瀹夊叏鐨勬彃鍏ヤ綅缃紝閬垮厤鐮村潖宸ュ叿璋冪敤閾?
+ * 查找安全的插入位置，避免破坏工具调用结构。
  *
- * 宸ュ叿璋冪敤閾剧殑缁撴瀯锛欰SSISTANT(鏈墽琛岀殑Tool) -> ASSISTANT(宸叉墽琛岀殑Tool)
- * 涓嶈兘鍦ㄨ繖涓よ€呬箣闂存彃鍏ユ秷鎭?
+ * 需要同时规避两种情况：
+ * 1. ASSISTANT(未执行 Tool) -> ASSISTANT(已执行 Tool) 的工具调用链
+ * 2. USER -> ASSISTANT(含 Tool) 的紧邻关系
  */
 internal fun findSafeInsertIndex(messages: List<UIMessage>, targetIndex: Int): Int {
     var index = targetIndex.coerceIn(0, messages.size)
@@ -234,16 +235,15 @@ internal fun findSafeInsertIndex(messages: List<UIMessage>, targetIndex: Int): I
         val prevMessage = messages.getOrNull(index - 1)
         val currentMessage = messages.getOrNull(index)
 
-        // 妫€鏌ユ槸鍚﹀湪宸ュ叿璋冪敤閾句腑闂?
-        // 濡傛灉鍓嶄竴鏉″寘鍚湭鎵ц鐨?Tool锛屽綋鍓嶅寘鍚凡鎵ц鐨?Tool
         val isPrevToolCall = prevMessage?.getTools()?.any { !it.isExecuted } == true
         val isCurrentToolResult = currentMessage?.getTools()?.any { it.isExecuted } == true
+        val isPrevUser = prevMessage?.role == MessageRole.USER
+        val isCurrentAssistantWithTools = currentMessage?.role == MessageRole.ASSISTANT
+            && currentMessage.getTools().isNotEmpty()
 
-        if (isPrevToolCall && isCurrentToolResult) {
-            // 鍦ㄥ伐鍏疯皟鐢ㄩ摼涓棿锛岄渶瑕佺户缁線鍓嶆壘
+        if ((isPrevToolCall && isCurrentToolResult) || (isPrevUser && isCurrentAssistantWithTools)) {
             index--
         } else {
-            // 鎵惧埌瀹夊叏浣嶇疆
             break
         }
     }

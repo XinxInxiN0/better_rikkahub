@@ -1,6 +1,7 @@
 package com.u4e50.rikkahub.di
 
 import com.u4e50.rikkahub.data.files.FilesManager
+import com.u4e50.rikkahub.data.files.SkillManager
 import com.u4e50.rikkahub.data.repository.ConversationRepository
 import com.u4e50.rikkahub.data.repository.FavoriteRepository
 import com.u4e50.rikkahub.data.repository.FilesRepository
@@ -32,5 +33,8 @@ val repositoryModule = module {
     single {
         FilesManager(get(), get(), get())
     }
-}
 
+    single {
+        SkillManager(get(), get())
+    }
+}

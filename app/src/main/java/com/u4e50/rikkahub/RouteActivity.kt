@@ -6,8 +6,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -16,11 +16,10 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -31,16 +30,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.res.stringResource
-import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import coil3.ImageLoader
@@ -50,10 +49,11 @@ import coil3.request.crossfade
 import coil3.svg.SvgDecoder
 import com.dokar.sonner.Toaster
 import com.dokar.sonner.rememberToasterState
-import kotlinx.serialization.Serializable
-import me.rerere.highlight.Highlighter
-import me.rerere.highlight.LocalHighlighter
 import com.u4e50.rikkahub.data.datastore.SettingsStore
+import com.u4e50.rikkahub.data.db.DatabaseMigrationTracker
+import com.u4e50.rikkahub.data.db.MigrationState
+import com.u4e50.rikkahub.data.event.AppEvent
+import com.u4e50.rikkahub.data.event.AppEventBus
 import com.u4e50.rikkahub.ui.components.ui.TTSController
 import com.u4e50.rikkahub.ui.context.LocalNavController
 import com.u4e50.rikkahub.ui.context.LocalSettings
@@ -67,7 +67,7 @@ import com.u4e50.rikkahub.ui.hooks.rememberCustomTtsState
 import com.u4e50.rikkahub.ui.pages.assistant.AssistantPage
 import com.u4e50.rikkahub.ui.pages.assistant.detail.AssistantBasicPage
 import com.u4e50.rikkahub.ui.pages.assistant.detail.AssistantDetailPage
-import com.u4e50.rikkahub.ui.pages.assistant.detail.AssistantInjectionsPage
+import com.u4e50.rikkahub.ui.pages.assistant.detail.AssistantExtensionsPage
 import com.u4e50.rikkahub.ui.pages.assistant.detail.AssistantLocalToolPage
 import com.u4e50.rikkahub.ui.pages.assistant.detail.AssistantMcpPage
 import com.u4e50.rikkahub.ui.pages.assistant.detail.AssistantMemoryPage
@@ -77,13 +77,15 @@ import com.u4e50.rikkahub.ui.pages.backup.BackupPage
 import com.u4e50.rikkahub.ui.pages.chat.ChatPage
 import com.u4e50.rikkahub.ui.pages.debug.DebugPage
 import com.u4e50.rikkahub.ui.pages.developer.DeveloperPage
+import com.u4e50.rikkahub.ui.pages.extensions.ExtensionsPage
+import com.u4e50.rikkahub.ui.pages.extensions.QuickMessagesPage
+import com.u4e50.rikkahub.ui.pages.extensions.SkillsPage
 import com.u4e50.rikkahub.ui.pages.favorite.FavoritePage
 import com.u4e50.rikkahub.ui.pages.history.HistoryPage
 import com.u4e50.rikkahub.ui.pages.imggen.ImageGenPage
 import com.u4e50.rikkahub.ui.pages.log.LogPage
 import com.u4e50.rikkahub.ui.pages.prompts.PromptPage
 import com.u4e50.rikkahub.ui.pages.search.SearchPage
-import com.u4e50.rikkahub.ui.pages.stats.StatsPage
 import com.u4e50.rikkahub.ui.pages.setting.SettingAboutPage
 import com.u4e50.rikkahub.ui.pages.setting.SettingDisplayPage
 import com.u4e50.rikkahub.ui.pages.setting.SettingDonatePage
@@ -97,15 +99,14 @@ import com.u4e50.rikkahub.ui.pages.setting.SettingSearchPage
 import com.u4e50.rikkahub.ui.pages.setting.SettingTTSPage
 import com.u4e50.rikkahub.ui.pages.setting.SettingWebPage
 import com.u4e50.rikkahub.ui.pages.share.handler.ShareHandlerPage
+import com.u4e50.rikkahub.ui.pages.stats.StatsPage
 import com.u4e50.rikkahub.ui.pages.translator.TranslatorPage
 import com.u4e50.rikkahub.ui.pages.webview.WebViewPage
 import com.u4e50.rikkahub.ui.theme.LocalDarkMode
 import com.u4e50.rikkahub.ui.theme.RikkahubTheme
-import androidx.compose.foundation.layout.Arrangement
-import com.u4e50.rikkahub.data.db.DatabaseMigrationTracker
-import com.u4e50.rikkahub.data.event.AppEventBus
-import com.u4e50.rikkahub.data.event.AppEvent
-import com.u4e50.rikkahub.data.db.MigrationState
+import kotlinx.serialization.Serializable
+import me.rerere.highlight.Highlighter
+import me.rerere.highlight.LocalHighlighter
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 import org.koin.compose.koinInject
@@ -174,10 +175,10 @@ class RouteActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Navigate to the chat screen if a conversation ID is provided
         intent.getStringExtra("conversationId")?.let { text ->
             navStack?.add(Screen.Chat(text))
-        }    }
+        }
+    }
 
     @Composable
     fun AppRoutes() {
@@ -198,10 +199,7 @@ class RouteActivity : ComponentActivity() {
             id = if (readBooleanPreference("create_new_conversation_on_start", true)) {
                 Uuid.random().toString()
             } else {
-                readStringPreference(
-                    "lastConversationId",
-                    Uuid.random().toString()
-                ) ?: Uuid.random().toString()
+                readStringPreference("lastConversationId", Uuid.random().toString()) ?: Uuid.random().toString()
             }
         )
 
@@ -241,8 +239,9 @@ class RouteActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         onBack = { backStack.removeLastOrNull() },
                         transitionSpec = {
-                            if (backStack.size == 1) fadeIn() togetherWith fadeOut()
-                            else {
+                            if (backStack.size == 1) {
+                                fadeIn() togetherWith fadeOut()
+                            } else {
                                 slideInHorizontally { it } togetherWith
                                     slideOutHorizontally { -it / 2 } + scaleOut(targetScale = 0.7f) + fadeOut()
                             }
@@ -257,8 +256,8 @@ class RouteActivity : ComponentActivity() {
                         },
                         entryProvider = entryProvider {
                             entry<Screen.Chat>(
-                                metadata = NavDisplay.transitionSpec { fadeIn() togetherWith fadeOut() }
-                                        + NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
+                                metadata = NavDisplay.transitionSpec { fadeIn() togetherWith fadeOut() } +
+                                    NavDisplay.popTransitionSpec { fadeIn() togetherWith fadeOut() }
                             ) { key ->
                                 ChatPage(
                                     id = Uuid.parse(key.id),
@@ -316,7 +315,7 @@ class RouteActivity : ComponentActivity() {
                             }
 
                             entry<Screen.AssistantInjections> { key ->
-                                AssistantInjectionsPage(key.id)
+                                AssistantExtensionsPage(key.id)
                             }
 
                             entry<Screen.Translator> {
@@ -348,8 +347,7 @@ class RouteActivity : ComponentActivity() {
                             }
 
                             entry<Screen.SettingProviderDetail> { key ->
-                                val id = Uuid.parse(key.providerId)
-                                SettingProviderDetailPage(id = id)
+                                SettingProviderDetailPage(id = Uuid.parse(key.providerId))
                             }
 
                             entry<Screen.SettingModels> {
@@ -396,8 +394,20 @@ class RouteActivity : ComponentActivity() {
                                 LogPage()
                             }
 
+                            entry<Screen.Extensions> {
+                                ExtensionsPage()
+                            }
+
+                            entry<Screen.QuickMessages> {
+                                QuickMessagesPage()
+                            }
+
                             entry<Screen.Prompts> {
                                 PromptPage()
+                            }
+
+                            entry<Screen.Skills> {
+                                SkillsPage()
                             }
 
                             entry<Screen.MessageSearch> {
@@ -411,7 +421,7 @@ class RouteActivity : ComponentActivity() {
                     )
                     if (BuildConfig.DEBUG) {
                         Text(
-                            text = "[寮€鍙戞ā寮廬",
+                            text = "[开发模式]",
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .padding(top = 4.dp),
@@ -443,7 +453,7 @@ class RouteActivity : ComponentActivity() {
                                 )
                                 if (state != null) {
                                     Text(
-                                        text = "v${state.from} 鈫?v${state.to}",
+                                        text = "v${state.from} → v${state.to}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -560,7 +570,16 @@ sealed interface Screen : NavKey {
     data object Log : Screen
 
     @Serializable
+    data object Extensions : Screen
+
+    @Serializable
+    data object QuickMessages : Screen
+
+    @Serializable
     data object Prompts : Screen
+
+    @Serializable
+    data object Skills : Screen
 
     @Serializable
     data object MessageSearch : Screen
@@ -568,4 +587,3 @@ sealed interface Screen : NavKey {
     @Serializable
     data object Stats : Screen
 }
-

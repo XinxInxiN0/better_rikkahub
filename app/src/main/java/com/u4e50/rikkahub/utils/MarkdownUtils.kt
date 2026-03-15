@@ -32,8 +32,8 @@ fun String.stripMarkdown(): String {
         .trim()
 }
 
-fun String.extractGeminiThinkingTitle(): String? {
-    // 鎸夎鍒嗗壊鏂囨湰
+fun String.extractThinkingTitle(): String? {
+    // 按行分割文本
     val lines = this.lines()
 
     // 浠庡悗寰€鍓嶆煡鎵炬渶鍚庝竴涓鍚堟潯浠剁殑鍔犵矖鏂囨湰琛?
@@ -45,8 +45,8 @@ fun String.extractGeminiThinkingTitle(): String? {
         val match = boldPattern.find(line)
 
         if (match != null) {
-            // 杩斿洖鍔犵矖鏍囪鍐呯殑鏂囨湰鍐呭
-            return match.groupValues[1].trim()
+            // 返回加粗标记内的文本内容
+            return match.groupValues[1].trim().takeUnless { it.isBlank() }
         }
     }
 

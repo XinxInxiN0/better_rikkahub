@@ -1,17 +1,5 @@
 package com.u4e50.rikkahub.ui.pages.chat
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.MaskTheater01
-import me.rerere.hugeicons.stroke.InLove
-import me.rerere.hugeicons.stroke.Clock01
-import me.rerere.hugeicons.stroke.Image02
-import me.rerere.hugeicons.stroke.LanguageCircle
-import me.rerere.hugeicons.stroke.PencilEdit01
-import me.rerere.hugeicons.stroke.Search01
-import me.rerere.hugeicons.stroke.Settings03
-import me.rerere.hugeicons.stroke.Sparkles
-import me.rerere.hugeicons.stroke.Award01
-import me.rerere.hugeicons.stroke.ChartColumn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,8 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -59,7 +45,16 @@ import com.u4e50.rikkahub.ui.context.Navigator
 import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ChartColumn
+import me.rerere.hugeicons.stroke.Image02
+import me.rerere.hugeicons.stroke.InLove
+import me.rerere.hugeicons.stroke.LanguageCircle
 import me.rerere.hugeicons.stroke.LookTop
+import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.TransactionHistory
 import com.u4e50.rikkahub.R
 import com.u4e50.rikkahub.Screen
@@ -68,10 +63,10 @@ import com.u4e50.rikkahub.data.model.Assistant
 import com.u4e50.rikkahub.data.model.Conversation
 import com.u4e50.rikkahub.data.repository.ConversationRepository
 import com.u4e50.rikkahub.ui.components.ai.AssistantPicker
+import com.u4e50.rikkahub.ui.components.ui.BackupReminderCard
 import com.u4e50.rikkahub.ui.components.ui.Greeting
 import com.u4e50.rikkahub.ui.components.ui.Tooltip
 import com.u4e50.rikkahub.ui.components.ui.UIAvatar
-import com.u4e50.rikkahub.ui.components.ui.BackupReminderCard
 import com.u4e50.rikkahub.ui.components.ui.UpdateCard
 import com.u4e50.rikkahub.ui.hooks.EditStateContent
 import com.u4e50.rikkahub.ui.hooks.readBooleanPreference

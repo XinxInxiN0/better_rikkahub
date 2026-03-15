@@ -1010,7 +1010,19 @@ class PromptInjectionTransformerTest {
     }
     // endregion
 
-    // region Tool call chain preservation tests
+    // region findSafeInsertIndex tests
+    @Test
+    fun `findSafeInsertIndex should not insert between USER and ASSISTANT with tools`() {
+        val messages = listOf(
+            UIMessage.system("System prompt"),
+            UIMessage.user("Call a tool"),
+            createAssistantWithUnexecutedTool("call_1", "tool")
+        )
+
+        val safeIndex = findSafeInsertIndex(messages, 2)
+        assertEquals(1, safeIndex)
+    }
+
     @Test
     fun `BOTTOM_OF_CHAT should not break tool call chain`() {
         val injectionId = Uuid.random()
@@ -1020,12 +1032,11 @@ class PromptInjectionTransformerTest {
             content = "Bottom injection"
         )
 
-        // 娑堟伅搴忓垪: SYSTEM -> USER -> ASSISTANT(unexecuted tool) -> ASSISTANT(executed tool)
         val messages = listOf(
             UIMessage.system("System prompt"),
             UIMessage.user("Call a tool"),
-            createAssistantWithUnexecutedTool("call_123", "test_tool"),
-            createAssistantWithExecutedTool("call_123", "test_tool")
+            createAssistantWithUnexecutedTool("call_1", "tool"),
+            createAssistantWithExecutedTool("call_1", "tool")
         )
 
         val result = transformMessages(
@@ -1035,18 +1046,13 @@ class PromptInjectionTransformerTest {
             lorebooks = emptyList()
         )
 
-        // 娉ㄥ叆搴旇鍦ㄥ伐鍏疯皟鐢ㄩ摼涔嬪墠锛岃€屼笉鏄湪涓棿
         assertEquals(5, result.size)
 
-        // 楠岃瘉宸ュ叿璋冪敤閾炬病鏈夎鐮村潖
         val unexecutedIndex = result.indexOfFirst { it.getTools().any { t -> !t.isExecuted } }
         val executedIndex = result.indexOfFirst { it.getTools().any { t -> t.isExecuted } }
-
-        // executed tool 搴旇绱ц窡鍦?unexecuted tool 鍚庨潰
-        assertEquals(unexecutedIndex + 1, executedIndex)
-
-        // 娉ㄥ叆鐨勬秷鎭簲璇ュ湪宸ュ叿璋冪敤閾句箣鍓?
         val injectedIndex = result.indexOfFirst { getMessageText(it).contains("Bottom injection") }
+
+        assertEquals(unexecutedIndex + 1, executedIndex)
         assertTrue(injectedIndex < unexecutedIndex)
     }
 
@@ -1056,11 +1062,10 @@ class PromptInjectionTransformerTest {
         val injection = createModeInjection(
             id = injectionId,
             position = InjectionPosition.AT_DEPTH,
-            injectDepth = 1, // 灏濊瘯鍦ㄦ渶鍚庝竴鏉℃秷鎭箣鍓嶆彃鍏?
+            injectDepth = 1,
             content = "Depth injection"
         )
 
-        // 娑堟伅搴忓垪: SYSTEM -> USER -> ASSISTANT(unexecuted tool) -> ASSISTANT(executed tool)
         val messages = listOf(
             UIMessage.system("System prompt"),
             UIMessage.user("Call a tool"),
@@ -1077,7 +1082,6 @@ class PromptInjectionTransformerTest {
 
         assertEquals(5, result.size)
 
-        // 楠岃瘉宸ュ叿璋冪敤閾炬病鏈夎鐮村潖
         val unexecutedIndex = result.indexOfFirst { it.getTools().any { t -> !t.isExecuted } }
         val executedIndex = result.indexOfFirst { it.getTools().any { t -> t.isExecuted } }
         assertEquals(unexecutedIndex + 1, executedIndex)
@@ -1093,7 +1097,6 @@ class PromptInjectionTransformerTest {
             content = "Depth injection"
         )
 
-        // 娑堟伅搴忓垪: SYSTEM -> USER -> ASSISTANT(unexecuted1) -> ASSISTANT(executed1) -> ASSISTANT(unexecuted2) -> ASSISTANT(executed2)
         val messages = listOf(
             UIMessage.system("System prompt"),
             UIMessage.user("Call tools"),
@@ -1110,7 +1113,6 @@ class PromptInjectionTransformerTest {
             lorebooks = emptyList()
         )
 
-        // 楠岃瘉涓や釜宸ュ叿璋冪敤閾鹃兘娌℃湁琚牬鍧?
         val unexecuted = result.mapIndexedNotNull { index, msg ->
             if (msg.getTools().any { !it.isExecuted }) index else null
         }
@@ -1120,8 +1122,6 @@ class PromptInjectionTransformerTest {
 
         assertEquals(2, unexecuted.size)
         assertEquals(2, executed.size)
-
-        // 姣忎釜 unexecuted tool 鍚庨潰绱ц窡鐫€瀵瑰簲鐨?executed tool
         unexecuted.forEachIndexed { i, callIndex ->
             assertEquals(callIndex + 1, executed[i])
         }
@@ -1131,14 +1131,24 @@ class PromptInjectionTransformerTest {
     fun `findSafeInsertIndex should return safe position before tool call chain`() {
         val messages = listOf(
             UIMessage.system("System prompt"),
-            UIMessage.user("Hello"),
+            UIMessage.user("Call a tool"),
             createAssistantWithUnexecutedTool("call_1", "tool"),
             createAssistantWithExecutedTool("call_1", "tool")
         )
 
-        // 灏濊瘯鍦ㄧ储寮?3 (executed tool 浣嶇疆) 鎻掑叆
         val safeIndex = findSafeInsertIndex(messages, 3)
-        // 搴旇杩斿洖 2 (unexecuted tool 涔嬪墠)
+        assertEquals(2, safeIndex)
+    }
+
+    @Test
+    fun `findSafeInsertIndex should allow insert before ASSISTANT without tools`() {
+        val messages = listOf(
+            UIMessage.system("System prompt"),
+            UIMessage.user("Hello"),
+            UIMessage.assistant("Hi!")
+        )
+
+        val safeIndex = findSafeInsertIndex(messages, 2)
         assertEquals(2, safeIndex)
     }
 
@@ -1153,19 +1163,12 @@ class PromptInjectionTransformerTest {
             createAssistantWithExecutedTool("call_2", "tool2")
         )
 
-        // 灏濊瘯鍦ㄧ储寮?5 (鏈€鍚庝竴涓?executed tool) 鎻掑叆
-        val safeIndex = findSafeInsertIndex(messages, 5)
-        // 搴旇杩斿洖 4 (绗簩涓?unexecuted tool 涔嬪墠)
-        assertEquals(4, safeIndex)
-
-        // 灏濊瘯鍦ㄧ储寮?3 (绗竴涓?executed tool) 鎻掑叆
-        val safeIndex2 = findSafeInsertIndex(messages, 3)
-        // 搴旇杩斿洖 2 (绗竴涓?unexecuted tool 涔嬪墠)
-        assertEquals(2, safeIndex2)
+        assertEquals(4, findSafeInsertIndex(messages, 5))
+        assertEquals(2, findSafeInsertIndex(messages, 3))
     }
 
     @Test
-    fun `findSafeInsertIndex should return original index when not in tool chain`() {
+    fun `findSafeInsertIndex should return original index when no tools`() {
         val messages = listOf(
             UIMessage.system("System prompt"),
             UIMessage.user("Hello"),
@@ -1173,14 +1176,13 @@ class PromptInjectionTransformerTest {
             UIMessage.user("How are you?")
         )
 
-        // 娌℃湁宸ュ叿璋冪敤锛屽簲璇ヨ繑鍥炲師绱㈠紩
         assertEquals(3, findSafeInsertIndex(messages, 3))
         assertEquals(2, findSafeInsertIndex(messages, 2))
         assertEquals(0, findSafeInsertIndex(messages, 0))
     }
 
     @Test
-    fun `injection after completed tool chain should work normally`() {
+    fun `BOTTOM_OF_CHAT should not inject between USER and ASSISTANT with tools`() {
         val injectionId = Uuid.random()
         val injection = createModeInjection(
             id = injectionId,
@@ -1188,7 +1190,71 @@ class PromptInjectionTransformerTest {
             content = "Bottom injection"
         )
 
-        // 娑堟伅搴忓垪: SYSTEM -> USER -> ASSISTANT(executed tool) -> ASSISTANT(final response) -> USER
+        val messages = listOf(
+            UIMessage.system("System prompt"),
+            UIMessage.user("Call a tool"),
+            createAssistantWithUnexecutedTool("call_1", "tool")
+        )
+
+        val result = transformMessages(
+            messages = messages,
+            assistant = createAssistant(modeInjectionIds = setOf(injectionId)),
+            modeInjections = listOf(injection),
+            lorebooks = emptyList()
+        )
+
+        assertEquals(4, result.size)
+
+        val injectedIndex = result.indexOfFirst { getMessageText(it).contains("Bottom injection") }
+        val originalUserIndex = result.indexOfFirst { getMessageText(it).contains("Call a tool") }
+        val assistantWithToolIndex = result.indexOfFirst { it.getTools().isNotEmpty() }
+
+        assertTrue(injectedIndex < originalUserIndex)
+        assertEquals(originalUserIndex + 1, assistantWithToolIndex)
+    }
+
+    @Test
+    fun `AT_DEPTH should not inject between USER and ASSISTANT with tools`() {
+        val injectionId = Uuid.random()
+        val injection = createModeInjection(
+            id = injectionId,
+            position = InjectionPosition.AT_DEPTH,
+            injectDepth = 1,
+            content = "Depth injection"
+        )
+
+        val messages = listOf(
+            UIMessage.system("System prompt"),
+            UIMessage.user("Call a tool"),
+            createAssistantWithUnexecutedTool("call_1", "tool")
+        )
+
+        val result = transformMessages(
+            messages = messages,
+            assistant = createAssistant(modeInjectionIds = setOf(injectionId)),
+            modeInjections = listOf(injection),
+            lorebooks = emptyList()
+        )
+
+        assertEquals(4, result.size)
+
+        val injectedIndex = result.indexOfFirst { getMessageText(it).contains("Depth injection") }
+        val originalUserIndex = result.indexOfFirst { getMessageText(it).contains("Call a tool") }
+        val assistantWithToolIndex = result.indexOfFirst { it.getTools().isNotEmpty() }
+
+        assertTrue(injectedIndex < originalUserIndex)
+        assertEquals(originalUserIndex + 1, assistantWithToolIndex)
+    }
+
+    @Test
+    fun `injection after ASSISTANT with tools should work normally`() {
+        val injectionId = Uuid.random()
+        val injection = createModeInjection(
+            id = injectionId,
+            position = InjectionPosition.BOTTOM_OF_CHAT,
+            content = "Bottom injection"
+        )
+
         val messages = listOf(
             UIMessage.system("System prompt"),
             UIMessage.user("Call a tool"),
@@ -1206,7 +1272,6 @@ class PromptInjectionTransformerTest {
 
         assertEquals(6, result.size)
 
-        // 娉ㄥ叆搴旇鍦ㄦ渶鍚庝竴鏉＄敤鎴锋秷鎭箣鍓?
         val injectedIndex = result.indexOfFirst { getMessageText(it).contains("Bottom injection") }
         val lastUserIndex = result.indexOfLast { it.role == MessageRole.USER && getMessageText(it) == "Thanks!" }
         assertEquals(lastUserIndex - 1, injectedIndex)
@@ -1214,7 +1279,6 @@ class PromptInjectionTransformerTest {
 
     @Test
     fun `findSafeInsertIndex should handle assistant with multiple tools in one message`() {
-        // 涓€涓?assistant 娑堟伅鍖呭惈澶氫釜 tool锛坅gentic loop 鍦烘櫙锛?
         val multiToolAssistant = UIMessage(
             role = MessageRole.ASSISTANT,
             parts = listOf(
@@ -1257,9 +1321,7 @@ class PromptInjectionTransformerTest {
             executedToolAssistant
         )
 
-        // 灏濊瘯鍦ㄧ储寮?3 鎻掑叆锛屽簲璇ヨ繑鍥?2锛堝 tool 娑堟伅涔嬪墠锛?
-        val safeIndex = findSafeInsertIndex(messages, 3)
-        assertEquals(2, safeIndex)
+        assertEquals(2, findSafeInsertIndex(messages, 3))
     }
     // endregion
 }

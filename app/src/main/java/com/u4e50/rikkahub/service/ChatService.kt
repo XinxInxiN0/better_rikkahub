@@ -53,6 +53,7 @@ import com.u4e50.rikkahub.data.ai.GenerationHandler
 import com.u4e50.rikkahub.data.ai.mcp.McpManager
 import com.u4e50.rikkahub.data.ai.tools.LocalTools
 import com.u4e50.rikkahub.data.ai.tools.createSearchTools
+import com.u4e50.rikkahub.data.ai.tools.createSkillTools
 import com.u4e50.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import com.u4e50.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import com.u4e50.rikkahub.data.ai.transformers.OcrTransformer
@@ -68,6 +69,7 @@ import com.u4e50.rikkahub.data.datastore.findProvider
 import com.u4e50.rikkahub.data.datastore.getCurrentAssistant
 import com.u4e50.rikkahub.data.datastore.getCurrentChatModel
 import com.u4e50.rikkahub.data.files.FilesManager
+import com.u4e50.rikkahub.data.files.SkillManager
 import com.u4e50.rikkahub.data.model.Conversation
 import com.u4e50.rikkahub.data.model.AssistantAffectScope
 import com.u4e50.rikkahub.data.model.replaceRegexes
@@ -124,6 +126,7 @@ class ChatService(
     private val localTools: LocalTools,
     val mcpManager: McpManager,
     private val filesManager: FilesManager,
+    private val skillManager: SkillManager,
 ) {
     // 缁熶竴浼氳瘽绠＄悊
     private val sessions = ConcurrentHashMap<Uuid, ConversationSession>()
@@ -491,6 +494,16 @@ class ChatService(
                         addAll(createSearchTools(settings))
                     }
                     addAll(localTools.getTools(settings.getCurrentAssistant().localTools))
+                    val assistant = settings.getCurrentAssistant()
+                    if (assistant.enabledSkills.isNotEmpty()) {
+                        addAll(
+                            createSkillTools(
+                                enabledSkills = assistant.enabledSkills,
+                                allSkills = skillManager.listSkills(),
+                                skillManager = skillManager,
+                            )
+                        )
+                    }
                     mcpManager.getAllAvailableTools().forEach { tool ->
                         add(
                             Tool(
@@ -638,7 +651,8 @@ class ChatService(
                     ),
                 ),
                 params = TextGenerationParams(
-                    model = model, temperature = 0.3f, thinkingBudget = 0
+                    model = model,
+                    thinkingBudget = 0,
                 ),
             )
 
@@ -683,7 +697,6 @@ class ChatService(
                 ),
                 params = TextGenerationParams(
                     model = model,
-                    temperature = 1.0f,
                     thinkingBudget = 0,
                 ),
             )
