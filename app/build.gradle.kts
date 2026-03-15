@@ -9,16 +9,18 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.google.services)
-    alias(libs.plugins.firebase.crashlytics)
+}
+
+configurations.configureEach {
+    exclude(group = "io.github.petterpx.floatingx", module = "floatingx-compose")
 }
 
 android {
-    namespace = "me.rerere.rikkahub"
+    namespace = "com.u4e50.rikkahub"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "me.rerere.rikkahub"
+        applicationId = "com.u4e50.rikkahub"
         minSdk = 26
         targetSdk = 36
         versionCode = 144
@@ -175,12 +177,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.material3.adaptive.navigation3)
 
-    // Firebase
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.analytics)
-    implementation(libs.firebase.crashlytics)
-    implementation(libs.firebase.config)
-
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
@@ -304,3 +300,4 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+

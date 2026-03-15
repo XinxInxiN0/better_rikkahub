@@ -1,16 +1,13 @@
 pluginManagement {
     repositories {
-        google {
-            content {
-                includeGroupByRegex("com\\.android.*")
-                includeGroupByRegex("com\\.google.*")
-                includeGroupByRegex("androidx.*")
-            }
-        }
+        // 某些特殊仓库保留
+        maven("https://repo.itextsupport.com/android")
+
+        google()
         mavenCentral()
         gradlePluginPortal()
-        maven("https://repo.itextsupport.com/android")
     }
+
     resolutionStrategy {
         eachPlugin {
             if (requested.id.id == "io.objectbox") {
@@ -19,13 +16,15 @@ pluginManagement {
         }
     }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
     repositories {
+        maven("https://jitpack.io")
+
         google()
         mavenCentral()
-        maven("https://jitpack.io")
-        mavenLocal()
     }
 }
 
